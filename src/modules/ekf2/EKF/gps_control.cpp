@@ -156,22 +156,21 @@ void Ekf::controlGpsFusion()
 
 		} else {
 			if (starting_conditions_passing) {
-				// Do not use external vision for yaw if using GPS because yaw needs to be
-				// defined relative to an NED reference frame
-				if (_control_status.flags.ev_yaw
-				    || _mag_inhibit_yaw_reset_req
-				    || _mag_yaw_reset_req) {
 
-					_mag_yaw_reset_req = true;
+				if (!_control_status.flags.gps) {
+					resetHorizontalPositionToGps(gps_sample);
 
-					// Stop the vision for yaw fusion and do not allow it to start again
-					stopEvYawFusion();
+					// when already using another velocity source velocity reset is not necessary
+					if (!_control_status.flags.opt_flow && !_control_status.flags.ev_vel) {
+						resetVelocityToGps(gps_sample);
+					}
 
-				} else {
-					startGpsFusion();
+					_information_events.flags.starting_gps_fusion = true;
+					ECL_INFO("starting GPS fusion");
+					_control_status.flags.gps = true;
 				}
 
-			} else if (gps_checks_passing && !_control_status.flags.yaw_align && (_params.mag_fusion_type == MagFuseType::NONE)) {
+			} else if (gps_checks_passing && !_control_status.flags.yaw_align && (_params.mag_fusion_type >= MagFuseType::NONE)) {
 				// If no mag is used, align using the yaw estimator (if available)
 				if (resetYawToEKFGSF()) {
 					_information_events.flags.yaw_aligned_to_imu_gps = true;

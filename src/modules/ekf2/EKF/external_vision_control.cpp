@@ -411,6 +411,10 @@ void Ekf::controlEvYawFusion()
 			}
 		}
 
+
+
+
+
 		const bool quality_sufficient = ((_params.ev_quality_minimum <= 0) || ((_params.ev_quality_minimum > 0)
 						 && (_ev_sample_delayed.quality >= _params.ev_quality_minimum)));
 
@@ -428,6 +432,21 @@ void Ekf::controlEvYawFusion()
 		bool starting_conditions_passing = continuing_conditions_passing
 						   && _control_status.flags.tilt_align
 						   && quality_sufficient;
+
+
+
+
+		const bool gps_checks_passing = isTimedOut(_last_gps_fail_us, (uint64_t)5e6);
+		const bool gps_checks_failing = isTimedOut(_last_gps_pass_us, (uint64_t)5e6);
+
+		if (gps_checks_passing && !gps_checks_failing && (_ev_sample_delayed.pos_frame != PositionFrame::LOCAL_FRAME_NED)) {
+			// TODO: check mag and/or gps yaw?
+			starting_conditions_passing = false;
+			stopEvYawFusion();
+
+		// } else if (!gps_checks_passing && gps_checks_failing && !_control_status.flags.gps) {
+		// 	stopMagFusion();
+		}
 
 		if (_control_status.flags.ev_yaw) {
 
