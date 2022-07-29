@@ -85,6 +85,20 @@ void BiasEstimator::fuseBias(const float measurement, const float measurement_va
 	_status = packStatus(innov, innov_var, innov_test_ratio);
 }
 
+void BiasEstimator::reset(const float measurement, const float measurement_var)
+{
+	_state = measurement;
+	_state_var = measurement_var;
+	constrainStateVar();
+
+	_time_since_last_positive_innov = 0.f;
+	_time_since_last_negative_innov = 0.f;
+
+	_signed_innov_test_ratio_lpf.reset(0.f);
+
+	_status = {};
+}
+
 inline float BiasEstimator::computeInnovTestRatio(const float innov, const float innov_var) const
 {
 	return innov * innov / (_gate_size * _gate_size * innov_var);

@@ -69,6 +69,7 @@ public:
 
 	void predict(float dt);
 	void fuseBias(float measurement, float measurement_var);
+	void reset(float measurement, float measurement_var);
 
 	void setBias(float bias) { _state = bias; }
 	void setProcessNoiseStdDev(float process_noise)
