@@ -79,6 +79,7 @@ set(msg_files
 	estimator_states.msg
 	estimator_status.msg
 	estimator_status_flags.msg
+	estimator_vision_bias.msg
 	event.msg
 	failure_detector_status.msg
 	follow_target.msg
