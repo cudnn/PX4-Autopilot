@@ -244,7 +244,10 @@ void VehicleAcceleration::Run()
 			//  - calibration offsets, scale factors, and thermal scale (if available)
 			//  - estimated in run bias (if available)
 			//  - biquad low-pass filter
+			/* KMTECH HIGHRES IMU
 			const Vector3f accel_corrected = _calibration.Correct(accel_raw) - _bias;
+			*/
+			const Vector3f accel_corrected = _calibration.Correct(accel_raw);
 			const Vector3f accel_filtered = _lp_filter.apply(accel_corrected);
 
 			_acceleration_prev = accel_corrected;
