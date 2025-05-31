@@ -41,6 +41,8 @@
 #include <uORB/topics/vehicle_air_data.h>
 #include <uORB/topics/vehicle_imu.h>
 #include <uORB/topics/vehicle_magnetometer.h>
+#include <uORB/topics/vehicle_angular_velocity.h>
+#include <uORB/topics/vehicle_acceleration.h>
 
 using matrix::Vector3f;
 
@@ -63,13 +65,22 @@ public:
 private:
 	explicit MavlinkStreamHighresIMU(Mavlink *mavlink) : MavlinkStream(mavlink) {}
 
-	uORB::SubscriptionMultiArray<vehicle_imu_s, 3> _vehicle_imu_subs{ORB_ID::vehicle_imu};
+	//uORB::SubscriptionMultiArray<vehicle_imu_s, 3> _vehicle_imu_subs{ORB_ID::vehicle_imu};
 	uORB::Subscription _estimator_sensor_bias_sub{ORB_ID(estimator_sensor_bias)};
-	uORB::Subscription _estimator_selector_status_sub{ORB_ID(estimator_selector_status)};
-	uORB::Subscription _sensor_selection_sub{ORB_ID(sensor_selection)};
+	//uORB::Subscription _estimator_selector_status_sub{ORB_ID(estimator_selector_status)};
+	//uORB::Subscription _sensor_selection_sub{ORB_ID(sensor_selection)};
 	uORB::Subscription _differential_pressure_sub{ORB_ID(differential_pressure)};
 	uORB::Subscription _magnetometer_sub{ORB_ID(vehicle_magnetometer)};
 	uORB::Subscription _air_data_sub{ORB_ID(vehicle_air_data)};
+
+        uORB::Subscription _vehicle_acc_sub{ORB_ID(vehicle_acceleration)};
+        uORB::Subscription _vehicle_angular_vel_sub{ORB_ID(vehicle_angular_velocity)};
+        vehicle_acceleration_s vehicle_acc;
+        vehicle_angular_velocity_s vehicle_angular_vel;
+        bool vehicle_acc_updated = false, vehicle_angular_vel_updated = false;
+        uint64_t time_usec{0};
+
+#if original
 
 	bool send() override
 	{
@@ -203,5 +214,41 @@ private:
 
 		return false;
 	}
+
+#else //UAV fast IMU version
+	bool send() override
+	{
+
+		//Check if accel and gyro are updated
+		if (_vehicle_acc_sub.update(&vehicle_acc)) {
+			vehicle_acc_updated = true;
+			time_usec = vehicle_acc.timestamp_sample;
+		}
+		if (_vehicle_angular_vel_sub.update(&vehicle_angular_vel)) {
+			vehicle_angular_vel_updated = true;
+			time_usec = vehicle_angular_vel.timestamp_sample;
+		}
+
+		if (vehicle_acc_updated && vehicle_angular_vel_updated) {
+			vehicle_acc_updated = false;
+			vehicle_angular_vel_updated = false;
+			uint16_t fields_updated = 0;
+			fields_updated |= (1 << 0) | (1 << 1) | (1 << 2); // accel
+			fields_updated |= (1 << 3) | (1 << 4) | (1 << 5); // gyro
+			mavlink_highres_imu_t msg{};
+			msg.time_usec = time_usec;
+			msg.xacc = vehicle_acc.xyz[0];
+			msg.yacc = vehicle_acc.xyz[1];
+			msg.zacc = vehicle_acc.xyz[2];
+			msg.xgyro = vehicle_angular_vel.xyz[0];
+			msg.ygyro = vehicle_angular_vel.xyz[1];
+			msg.zgyro = vehicle_angular_vel.xyz[2];
+			msg.fields_updated = fields_updated;
+			mavlink_msg_highres_imu_send_struct(_mavlink->get_channel(), &msg);
+			return true;
+		}
+		return false;
+	}
+#endif
 };
 #endif // HIGHRES_IMU_HPP
