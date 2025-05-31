@@ -1482,7 +1482,7 @@ Mavlink::configure_streams_to_default(const char *configure_single_stream)
 		// Note: streams requiring low latency come first
 		configure_stream_local("TIMESYNC", 10.0f);
 		configure_stream_local("CAMERA_TRIGGER", unlimited_rate);
-		configure_stream_local("HIGHRES_IMU", 50.0f);
+		configure_stream_local("", unlimited_rate);
 		configure_stream_local("LOCAL_POSITION_NED", 30.0f);
 		configure_stream_local("ATTITUDE", 100.0f);
 		configure_stream_local("ALTITUDE", 10.0f);
@@ -1556,7 +1556,7 @@ Mavlink::configure_streams_to_default(const char *configure_single_stream)
 		break;
 
 	case MAVLINK_MODE_EXTVISION:
-		configure_stream_local("HIGHRES_IMU", unlimited_rate);		// for VIO
+		configure_stream_local("", unlimited_rate);		// for VIO
 
 	// FALLTHROUGH
 	case MAVLINK_MODE_EXTVISIONMIN:
@@ -1673,7 +1673,7 @@ Mavlink::configure_streams_to_default(const char *configure_single_stream)
 		configure_stream_local("GPS_STATUS", 1.0f);
 		configure_stream_local("GIMBAL_DEVICE_ATTITUDE_STATUS", 0.5f);
 		configure_stream_local("GIMBAL_MANAGER_STATUS", 0.5f);
-		configure_stream_local("HIGHRES_IMU", 50.0f);
+		configure_stream_local("", 50.0f);
 		configure_stream_local("HOME_POSITION", 0.5f);
 		configure_stream_local("HYGROMETER_SENSOR", 1.0f);
 		configure_stream_local("MAG_CAL_REPORT", 1.0f);
@@ -3366,9 +3366,9 @@ functionality, this needs to be take into account, in order to avoid race condit
 Start mavlink on ttyS1 serial with baudrate 921600 and maximum sending rate of 80kB/s:
 $ mavlink start -d /dev/ttyS1 -b 921600 -m onboard -r 80000
 
-Start mavlink on UDP port 14556 and enable the HIGHRES_IMU message with 50Hz:
+Start mavlink on UDP port 14556 and enable the  message with 50Hz:
 $ mavlink start -u 14556 -r 1000000
-$ mavlink stream -u 14556 -s HIGHRES_IMU -r 50
+$ mavlink stream -u 14556 -s  -r 50
 )DESCR_STR");
 
 	PRINT_MODULE_USAGE_NAME("mavlink", "communication");
