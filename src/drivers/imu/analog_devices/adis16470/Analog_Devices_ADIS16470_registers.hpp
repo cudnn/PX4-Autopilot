@@ -63,13 +63,14 @@ static constexpr uint16_t Bit15 = (1 << 15);
 namespace Analog_Devices_ADIS16470
 {
 static constexpr uint32_t SPI_SPEED = 2 * 1000 * 1000;       // 2 MHz SPI serial interface
-static constexpr uint32_t SPI_SPEED_BURST = 1 * 1000 * 1000; // 1 MHz SPI serial interface for burst read
+static constexpr uint32_t SPI_SPEED_BURST = 2 * 1000 * 1000; // 1 MHz SPI serial interface for burst read
 
 static constexpr uint32_t SPI_STALL_PERIOD = 16; // 16 us Stall period between data
 
 static constexpr uint16_t DIR_WRITE = 0x80;
 
 static constexpr uint16_t Product_identification = 0x4056;
+static constexpr uint16_t Product_identification2 = 0x575F;  
 
 static constexpr uint32_t SAMPLE_INTERVAL_US = 500; // 2000 Hz
 
