@@ -108,7 +108,7 @@ int ADIS16470::probe()
 
 	const uint16_t PROD_ID = RegisterRead(Register::PROD_ID);
 
-	if (PROD_ID != Product_identification) {
+        if (!(PROD_ID == Product_identification || PROD_ID == Product_identification2)) {
 		DEVICE_DEBUG("unexpected PROD_ID 0x%02x", PROD_ID);
 		return PX4_ERROR;
 	}
@@ -141,7 +141,7 @@ void ADIS16470::RunImpl()
 	case STATE::WAIT_FOR_RESET:
 
 		if (_self_test_passed) {
-			if ((RegisterRead(Register::PROD_ID) == Product_identification)) {
+			if (!(RegisterRead(Register::PROD_ID) == Product_identification || RegisterRead(Register::PROD_ID) == Product_identification2)) {
 				// if reset succeeded then configure
 				_state = STATE::CONFIGURE;
 				ScheduleNow();
