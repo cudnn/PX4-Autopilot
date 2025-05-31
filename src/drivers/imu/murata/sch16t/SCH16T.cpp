@@ -108,7 +108,7 @@ int SCH16T::probe()
 	PX4_INFO("COMP_ID:\t 0x%0x", comp_id);
 	PX4_INFO("ASIC_ID:\t 0x%0x", asic_id);
 
-	bool success = asic_id == 0x21 && comp_id == 0x23;
+	bool success = asic_id == 0x21 && comp_id == 0x21;
 
 	return success ? PX4_OK : PX4_ERROR;
 }
@@ -292,9 +292,17 @@ bool SCH16T::ReadData(SensorData *data)
 	uint64_t gyro_z = RegisterRead(ACC_X2);
 	uint64_t acc_x  = RegisterRead(ACC_Y2);
 	uint64_t acc_y  = RegisterRead(ACC_Z2);
-	uint64_t acc_z  = RegisterRead(TEMP);
-	uint64_t temp   = RegisterRead(TEMP);
+	uint64_t acc_z  = RegisterRead(ACC_Y3);
+	// 读取辅助加速度通道数据
+	uint64_t acc_x_aux = RegisterRead(ACC_Y3);
+	uint64_t acc_y_aux = RegisterRead(ACC_Z3);
+	uint64_t acc_z_aux = RegisterRead(TEMP);
 
+	uint64_t temp   = RegisterRead(STAT_SUM_SAT);
+	uint64_t stat_sum_sat = RegisterRead(STAT_SUM_SAT);
+
+	//PX4_INFO("gyro_x:\t 0x%0llu", gyro_x);
+	
 	static constexpr uint64_t MASK48_GENERAL_ERROR = 	0b00000000'00010000'00000000'00000000'00000000'00000000;
 	static constexpr uint64_t MASK48_COMMAND_ERROR = 	0b00000000'00001000'00000000'00000000'00000000'00000000;
 	static constexpr uint64_t MASK48_SATURATION_ERROR = 0b00000000'00000100'00000000'00000000'00000000'00000000;
@@ -348,6 +356,35 @@ bool SCH16T::ReadData(SensorData *data)
 	data->gyro_z   = SPI48_DATA_INT32(gyro_z);
 	// Temperature data is always 16 bits wide. Drop 4 LSBs as they are not used.
 	data->temp 	  = SPI48_DATA_INT32(temp) >> 4;
+        
+	// 检查主通道饱和或错误状态，必要时切换到辅助通道
+	// 注意：在SCH16T中，状态位为0表示饱和，为1表示正常
+	// STAT_SUM_SAT寄存器中每个位对应一个通道的饱和状态
+	uint16_t saturation_status = SPI48_DATA_UINT16(stat_sum_sat);
+
+	// 注意位定义：0表示饱和，1表示正常，因此取反
+	bool acc_x_saturated = (saturation_status & STAT_SUM_SAT_ACC_X2) == 0;
+	bool acc_y_saturated = (saturation_status & STAT_SUM_SAT_ACC_Y2) == 0;
+	bool acc_z_saturated = (saturation_status & STAT_SUM_SAT_ACC_Z2) == 0;
+
+	// 主通道和辅助通道的缩放比例，使用乘法代替除法
+	// 1600 LSB/(m/s²) 是主通道，3200 LSB/(m/s²) 是辅助通道
+	constexpr float aux_scale_factor = 0.5f; // 1600.0f / 3200.0f = 0.5f
+
+	// 只在主通道饱和时才处理辅助通道数据，避免不必要的计算
+	if (acc_x_saturated || acc_y_saturated || acc_z_saturated) {
+		// 只在实际需要时计算辅助通道数据
+		if (acc_x_saturated) {
+			data->acc_x = SPI48_DATA_INT32(acc_x_aux) * aux_scale_factor;
+		}
+		if (acc_y_saturated) {
+			data->acc_y = SPI48_DATA_INT32(acc_y_aux) * aux_scale_factor;
+		}
+		if (acc_z_saturated) {
+			data->acc_z = SPI48_DATA_INT32(acc_z_aux) * aux_scale_factor;
+		}
+	}
+	
 	// Conver to PX4 coordinate system (FLU to FRD)
 	data->acc_x = data->acc_x;
 	data->acc_y = -data->acc_y;
@@ -375,9 +412,14 @@ void SCH16T::ConfigurationFromParameters()
 	acc12_ctrl.bits.DYN_ACC_XYZ2 = 	ACC12_RANGE_80;
 	acc3_ctrl.bits.DYN_ACC_XYZ3 = 	ACC3_RANGE_260;
 
-	_px4_gyro.set_range(math::radians(327.5f)); 		// 327.5 °/sec
-	_px4_gyro.set_scale(math::radians(1.f / 1600.f)); 	// 1600 LSB/(°/sec)
-	_px4_accel.set_range(163.4f); 		// 163.4 m/s2
+	//_px4_gyro.set_range(math::radians(327.5f)); 		// 327.5 °/sec
+	//_px4_gyro.set_scale(math::radians(1.f / 1600.f)); 	// 1600 LSB/(°/sec)
+
+	_px4_gyro.set_range(math::radians(5000.f));         // 5000 °/sec
+	_px4_gyro.set_scale(math::radians(1.f / 100.f));     // 100 LSB/(°/sec)
+        //_px4_accel.set_range(163.4f); 		// 163.4 m/s2
+        //_px4_accel.set_range(260.0f); 		// 260.0 m/s2
+	_px4_accel.set_range(327.7f); 		// 327. m/s2
 	_px4_accel.set_scale(1.f / 3200.f); // 3200 LSB/(m/s2)
 
 	// Gyro filter
